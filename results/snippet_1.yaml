@@ -25,10 +25,13 @@ parameters:
   implementation_defined: false
   implementation_specific: true
   constraints:
+  - power-of-two (or NAPOT) range
   - shall be uniform throughout the system
   evidence:
   - The capacity and organization of a cache and the size of a cache block are both
     implementation-specific
+  - each of which represents a contiguous, naturally aligned power-of-two (or NAPOT)
+    range of memory locations.
   - In the initial set of CMO extensions, the size of a cache block shall be uniform
     throughout the system.
   confidence: high

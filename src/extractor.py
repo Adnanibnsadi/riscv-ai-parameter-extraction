@@ -6,7 +6,7 @@ import yaml
 from dotenv import load_dotenv
 from google import genai
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 
 # Get the project root directory
@@ -52,9 +52,20 @@ class ExtractionResult(BaseModel):
 SYSTEM_PROMPT = """
 You are an AI assistant analyzing the RISC-V ISA specification.
 
-Extract architectural parameters only when the provided specification explicitly
-states that they are implementation-specific, implementation-defined, optional,
-or otherwise variable by implementation.
+Extract architectural parameters explicitly defined or constrained by the
+provided RISC-V specification snippet.
+
+Pay particular attention to parameters that are:
+- implementation-defined
+- implementation-specific
+- optional
+- optionally supported
+- variable by implementation
+
+Also extract fixed architectural parameters when the specification explicitly
+defines a configurable value, range, width, limit, encoding, or constraint.
+
+Do not infer parameters that are not explicitly supported by the snippet.
 
 Use only information explicitly present in the provided snippet.
 Do not add information, examples, units, or constraints from general knowledge.
@@ -171,7 +182,7 @@ RISC-V specification snippet:
     except json.JSONDecodeError as e:
         raise ValueError(
             f"Gemini returned invalid JSON:\n{response.text}"
-        ) from e
+            ) from e
 
     # Normalize the LLM response before validation
     normalized_result = normalize_response(parsed_result)
@@ -186,6 +197,7 @@ RISC-V specification snippet:
         raise ValueError(
             f"Gemini response failed Pydantic validation:\n"
             f"{normalized_result}"
+            f"{e}"
         ) from e
 
     # Return validated data as a dictionary
@@ -218,7 +230,7 @@ def main():
     output_directory.mkdir(exist_ok=True)
 
     # Find all text snippets
-    snippets = list(data_directory.glob("*.txt"))
+    snippets = sorted(data_directory.glob("*.txt"))
 
     if not snippets:
         print("No .txt specification snippets found in the data directory.")

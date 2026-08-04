@@ -245,21 +245,26 @@ confidence: Literal["high", "medium", "low"]
 
 Therefore, unexpected values are rejected during validation.
 
-### 5.7 Context-Aware Handling of Modal and Optional Language
+### 5.7 Distinguishing Architectural Parameters from Fixed Encoding Details
 
-The coding challenge identifies words such as `may`, `might`, `should`,
-`optional`, and `optionally` as potential indicators of parameters.
+The prompt was further refined to prevent the model from treating every numerical
+value, bit range, encoding field, or architectural constant as an independent
+parameter.
 
-The prompt therefore treats these terms as signals rather than automatic
-extraction triggers.
+The model is now explicitly instructed not to extract fixed encoding details,
+field positions, or encoding conventions as separate architectural parameters
+unless the specification indicates that they are variable, configurable,
+optional, implementation-defined, or implementation-specific.
 
-A parameter is extracted only when the surrounding context indicates that
-the statement describes an implementation-variable, optional, or otherwise
-configurable architectural property.
+This refinement was motivated by the second challenge snippet, which describes
+fixed CSR address-mapping conventions. Without this restriction, the model could
+incorrectly extract parameters such as CSR address width, CSR encoding ranges,
+and privilege-level encoding fields.
 
-This prevents false positives caused by ordinary uses of modal language.
-For example, a statement that software "may" perform an operation does not
-necessarily define an architectural parameter.
+After refinement, the CSR snippet correctly produces:
+
+```yaml
+parameters: []
 
 ---
 

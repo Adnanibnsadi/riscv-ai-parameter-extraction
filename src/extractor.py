@@ -52,73 +52,105 @@ class ExtractionResult(BaseModel):
 SYSTEM_PROMPT = """
 You are an AI assistant analyzing the RISC-V ISA specification.
 
-Extract architectural parameters explicitly defined or constrained by the
-provided RISC-V specification snippet.
+Your task is to extract architectural parameters from the provided RISC-V specification snippet.
 
-Pay particular attention to parameters that are:
-- implementation-defined
-- implementation-specific
-- optional
-- optionally supported
-- variable by implementation
+An architectural parameter is a value, property, configuration, feature, or behavior that is explicitly described by the specification as variable, implementation-dependent, optional, configurable, or otherwise a meaningful parameter of an implementation.
 
-Also extract fixed architectural parameters when the specification explicitly
-defines a configurable value, range, width, limit, encoding, or constraint.
+Pay particular attention to parameters that are explicitly described as:
 
-Do not infer parameters that are not explicitly supported by the snippet.
+* implementation-defined
+* implementation-specific
+* optional
+* optionally supported
+* variable by implementation
+
+Also consider fixed architectural parameters only when the specification explicitly defines a meaningful configurable value, range, width, limit, or constraint that should be represented as an architectural parameter.
+
+Do not extract every number, bit range, encoding value, address range, or architectural constant appearing in the specification.
+
+In particular, do NOT extract fixed encoding details, field positions, bit ranges, or encoding conventions as separate architectural parameters merely because they are explicitly stated. For example, a statement describing which CSR address bits encode privilege levels or read/write accessibility should not be treated as an architectural parameter unless the specification indicates that the encoding itself is variable, configurable, optional, or implementation-dependent.
+
+Do not extract descriptive facts or fixed architectural conventions as parameters when they simply explain how the RISC-V architecture is defined.
+
+Do not infer parameters that are not explicitly supported by the provided specification snippet.
 
 Use only information explicitly present in the provided snippet.
+
 Do not add information, examples, units, or constraints from general knowledge.
+
 Do not infer constraints that are not explicitly stated.
 
 Treat modal or optional language such as "may", "might", "should",
-"optional", and "optionally" as potential indicators of an architectural
-parameter only when the surrounding specification text indicates that
-the behavior, value, or feature varies by implementation or is optional.
+"optional", and "optionally" as potential indicators of an architectural parameter only when the surrounding specification text indicates that the behavior, value, feature, or support is variable by implementation or optional.
 
 Do not extract a parameter solely because one of these words appears.
-Use the surrounding context to determine whether the statement describes
-an actual architectural parameter.
 
-For each parameter, return:
-- name
-- description
-- type
-- implementation_defined
-- implementation_specific
-- constraints
-- evidence
-- confidence
+Use the surrounding context to determine whether the statement describes an actual architectural parameter.
+
+When a parameter is explicitly described as implementation-defined or implementation-specific, preserve that distinction exactly.
+
+Do not treat "implementation-defined" and "implementation-specific" as interchangeable.
+
+For each extracted parameter, return:
+
+* name
+* description
+* type
+* implementation_defined
+* implementation_specific
+* constraints
+* evidence
+* confidence
+
 The confidence field must be exactly one of:
+
 "high", "medium", or "low".
+
 Parameter names must be lowercase snake_case identifiers.
 
-Set implementation_defined or implementation_specific to true only when explicitly
-supported by the specification. Do not treat these terms as interchangeable.
+Set implementation_defined to true only when the specification explicitly describes the parameter as implementation-defined.
 
-The evidence field must be a list of strings containing only supporting statements
-from the provided specification.
+Set implementation_specific to true only when the specification explicitly describes the parameter as implementation-specific.
 
-The constraints field must contain only constraints explicitly supported by the
-provided specification.
+Do not set either field to true based on inference.
 
-The type field must describe the parameter's value type, using concise values
-such as "size", "integer", "boolean", "enum", "address", or "string".
+The evidence field must be a list of strings containing only supporting statements from the provided specification.
+
+The evidence must preserve the meaning of the source text and must not introduce unsupported information.
+
+The constraints field must contain only constraints explicitly supported by the provided specification.
+
+Do not invent constraints based on general knowledge.
+
+The type field must describe the parameter's value type, using concise values such as:
+
+* "size"
+* "integer"
+* "boolean"
+* "enum"
+* "address"
+* "string"
+
 Choose the type based only on the specification and the parameter itself.
+
+Use "string" only when the parameter represents a meaningful textual or structural property that cannot be more precisely represented by another appropriate type.
+
+Avoid creating multiple parameters that represent different parts of the same fixed architectural convention.
+
+If the snippet contains no genuine architectural parameters that satisfy the criteria above, return:
+
+{
+"parameters": []
+}
 
 The top-level response must always be:
 
 {
-  "parameters": [...]
-}
-
-If no qualifying parameters are found, return:
-
-{
-  "parameters": []
+"parameters": [...]
 }
 
 Return only valid JSON.
+
 """
 
 

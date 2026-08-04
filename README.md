@@ -1,135 +1,115 @@
-# RISC-V Architectural Parameter Extractor
+# RISC-V AI Parameter Extraction
 
 An AI-assisted tool for extracting architectural parameters from the RISC-V ISA specification using Google's Gemini API.
 
-The project analyzes RISC-V specification snippets, identifies implementation-defined and implementation-specific architectural parameters, validates the AI-generated results using Pydantic, and exports the structured results as YAML files.
+The project analyzes RISC-V specification snippets and identifies parameters whose behavior or values are explicitly described as implementation-specific, implementation-defined, optional, or otherwise variable by implementation.
 
-This project is being developed as part of an exploration of AI-assisted extraction of architectural parameters from the RISC-V ISA specification.
+The extracted information is validated using Pydantic and saved as structured YAML files.
 
 ---
 
-## Overview
+## Project Overview
 
-The RISC-V ISA specification contains a large amount of technical information describing architectural behavior, implementation choices, constraints, and conventions.
+RISC-V specifications contain a large amount of architectural information, including parameters that may vary between implementations.
 
-Manually identifying and extracting architectural parameters from the specification can be time-consuming and difficult to scale.
+Manually identifying these parameters across a large specification can be time-consuming. This project explores an AI-assisted approach to automatically identify and structure such information.
 
-This project uses a Large Language Model (LLM) to assist with this process.
+The current pipeline is:
 
-The current implementation:
+```text
+RISC-V Specification Snippet
+            │
+            ▼
+      Gemini AI Model
+            │
+            ▼
+       JSON Response
+            │
+            ▼
+    Response Normalization
+            │
+            ▼
+     Pydantic Validation
+            │
+            ▼
+       YAML Output
+```
 
-1. Reads RISC-V specification snippets from text files.
-2. Sends each snippet to Google's Gemini model.
-3. Uses a structured system prompt to identify architectural parameters.
-4. Extracts relevant parameter information from the model response.
-5. Parses the response as JSON.
-6. Normalizes inconsistent list fields returned by the LLM.
-7. Validates the result using Pydantic models.
-8. Saves validated results as YAML files.
-9. Uses automated tests to verify the extraction and validation pipeline.
+The project is designed as an initial prototype that can be extended to process larger portions of the RISC-V ISA specification.
 
 ---
 
 ## Features
 
-* AI-assisted architectural parameter extraction
-* Gemini API integration
-* Structured JSON responses from the LLM
-* Pydantic-based schema validation
-* Response normalization for inconsistent LLM output
-* YAML output generation
-* Batch processing of RISC-V specification snippets
-* Error handling for:
-
-  * Gemini API failures
-  * Empty API responses
-  * Invalid JSON responses
-  * Invalid response schemas
-* Automated testing with pytest
-* Mocked Gemini API tests that do not consume API quota
-
----
-
-## Architecture
-
-The current processing pipeline is:
-
-```text
-RISC-V Specification Snippet
-            |
-            v
-      Text Input File
-            |
-            v
-       Python Extractor
-            |
-            v
-       Gemini 2.5 Flash
-            |
-            v
-        JSON Response
-            |
-            v
-    Response Normalization
-            |
-            v
-     Pydantic Validation
-            |
-            v
-       Validated Data
-            |
-            v
-        YAML Output
-```
-
----
-
-## Project Structure
-
-```text
-riscv-parameter-extractor/
-|
-├── data/
-│   ├── snippet_1.txt
-│   └── snippet_2.txt
-│
-├── src/
-│   ├── __init__.py
-│   └── extractor.py
-│
-├── tests/
-│   ├── test_extractor.py
-│   └── test_validation.py
-│
-├── output/
-│   └── Generated YAML files
-│
-├── .env
-├── .gitignore
-├── README.md
-└── requirements.txt
-```
-
-> The `.env`, `.venv/`, `output/`, Python cache files, and other generated files are excluded from version control through `.gitignore`.
+* Extracts architectural parameters from RISC-V specification snippets.
+* Uses Google's Gemini API for AI-assisted extraction.
+* Identifies implementation-specific and implementation-defined parameters.
+* Handles optional or implementation-variable behavior when explicitly stated.
+* Produces structured JSON responses from Gemini.
+* Validates AI-generated responses using Pydantic.
+* Normalizes common response inconsistencies before validation.
+* Converts validated results into YAML files.
+* Processes multiple `.txt` specification snippets automatically.
+* Includes automated unit and validation tests using Pytest.
+* Keeps API credentials outside the source code using environment variables.
 
 ---
 
 ## Extracted Parameter Schema
 
-Each extracted architectural parameter is represented using the following fields:
+Each extracted architectural parameter contains the following fields:
 
-| Field                     | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `name`                    | Name of the architectural parameter                  |
-| `description`             | Description of the parameter                         |
-| `type`                    | Type or nature of the parameter                      |
-| `implementation_defined`  | Whether the parameter is implementation-defined      |
-| `implementation_specific` | Whether the parameter is implementation-specific     |
-| `constraints`             | Constraints imposed by the RISC-V specification      |
-| `evidence`                | Supporting evidence extracted from the specification |
-| `confidence`              | Confidence level: `high`, `medium`, or `low`         |
+| Field                     | Description                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| `name`                    | Unique parameter name in lowercase `snake_case`                                            |
+| `description`             | Description of the architectural parameter                                                 |
+| `type`                    | Parameter value type, such as `size`, `integer`, `boolean`, `enum`, `address`, or `string` |
+| `implementation_defined`  | Whether the parameter is explicitly implementation-defined                                 |
+| `implementation_specific` | Whether the parameter is explicitly implementation-specific                                |
+| `constraints`             | Explicit constraints found in the specification                                            |
+| `evidence`                | Supporting statements from the specification                                               |
+| `confidence`              | Extraction confidence: `high`, `medium`, or `low`                                          |
 
-Example:
+The top-level output structure is:
+
+```yaml
+parameters:
+  - name: example_parameter
+    description: Example description
+    type: size
+    implementation_defined: false
+    implementation_specific: true
+    constraints:
+      - Example constraint
+    evidence:
+      - Supporting statement from the specification
+    confidence: high
+```
+
+If no qualifying architectural parameters are identified:
+
+```yaml
+parameters: []
+```
+
+---
+
+## Example
+
+### Input
+
+A specification snippet describing cache properties:
+
+```text
+The capacity and organization of a cache and the size of a cache block
+are both implementation-specific, and the execution environment provides
+software a means to discover information about the caches and cache blocks
+in a system.
+```
+
+### Extracted Output
+
+The system identifies parameters such as:
 
 ```yaml
 parameters:
@@ -142,67 +122,102 @@ parameters:
     evidence:
       - The capacity and organization of a cache and the size of a cache block are both implementation-specific
     confidence: high
+
+  - name: cache_organization
+    description: The organization of a cache.
+    type: string
+    implementation_defined: false
+    implementation_specific: true
+    constraints: []
+    evidence:
+      - The capacity and organization of a cache and the size of a cache block are both implementation-specific
+    confidence: high
+
+  - name: cache_block_size
+    description: The size of a cache block.
+    type: size
+    implementation_defined: false
+    implementation_specific: true
+    constraints:
+      - shall be uniform throughout the system
+    evidence:
+      - The capacity and organization of a cache and the size of a cache block are both implementation-specific
+      - In the initial set of CMO extensions, the size of a cache block shall be uniform throughout the system.
+    confidence: high
+```
+
+A snippet that contains no qualifying architectural parameters produces:
+
+```yaml
+parameters: []
 ```
 
 ---
 
-## Example
-
-Given a RISC-V specification snippet describing cache behavior:
+## Project Structure
 
 ```text
-The capacity and organization of a cache and the size of a cache block
-are both implementation-specific, and the execution environment provides
-software a means to discover information about the caches and cache blocks
-in a system.
+riscv-ai-parameter-extraction/
+│
+├── data/
+│   ├── snippet_1.txt
+│   └── snippet_2.txt
+│
+├── output/
+│   ├── snippet_1.yaml
+│   └── snippet_2.yaml
+│
+├── src/
+│   ├── __init__.py
+│   └── extractor.py
+│
+├── tests/
+│   ├── test_extractor.py
+│   └── test_validation.py
+│
+├── .env
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
-The system can identify parameters such as:
+---
 
-* `cache_capacity`
-* `cache_organization`
-* `cache_block_size`
+## Requirements
 
-The extracted information is then validated and saved in YAML format.
+* Python 3.10 or newer
+* Google Gemini API key
+* Internet connection
+* Python packages listed in `requirements.txt`
 
 ---
 
 ## Installation
 
-### 1. Clone the repository
+Clone the repository:
 
 ```bash
-git clone <your-github-repository-url>
-cd riscv-parameter-extractor
+git clone https://github.com/Adnanibnsadi/riscv-ai-parameter-extraction.git
+cd riscv-ai-parameter-extraction
 ```
 
-### 2. Create a virtual environment
+Create a virtual environment:
 
-On Windows:
+### Windows PowerShell
 
 ```powershell
 python -m venv .venv
 ```
 
-Activate it using PowerShell:
+Activate the environment:
 
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
-If PowerShell prevents script execution, you can use:
+If PowerShell prevents script execution, you can run the project using the virtual environment's Python executable directly or adjust the PowerShell execution policy for your user account.
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Then activate the environment again:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-### 3. Install dependencies
+Install dependencies:
 
 ```powershell
 pip install -r requirements.txt
@@ -210,25 +225,29 @@ pip install -r requirements.txt
 
 ---
 
-## Configuration
-
-The application requires a Gemini API key.
+## API Configuration
 
 Create a `.env` file in the project root:
 
 ```text
-GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-**Never commit your `.env` file or API key to GitHub.**
+The application loads the API key using `python-dotenv`.
 
-The `.env` file is excluded through `.gitignore`.
+**Never commit your API key to GitHub.**
+
+The `.gitignore` file excludes `.env` from Git tracking.
 
 ---
 
 ## Running the Extractor
 
-Place RISC-V specification snippets in the `data/` directory.
+Place RISC-V specification snippets as `.txt` files inside:
+
+```text
+data/
+```
 
 For example:
 
@@ -237,181 +256,195 @@ data/snippet_1.txt
 data/snippet_2.txt
 ```
 
-Run the extractor with:
+Run:
 
 ```powershell
 python src/extractor.py
 ```
 
-The program processes the input snippets and generates YAML output files in the `output/` directory.
+The program processes every `.txt` file in the `data` directory.
+
+The resulting YAML files are written to:
+
+```text
+output/
+```
+
+For example:
+
+```text
+output/snippet_1.yaml
+output/snippet_2.yaml
+```
+
+If an output file with the same name already exists, it will be **overwritten with the newly generated result**.
+
+The program does not create duplicate files with different names.
 
 ---
 
 ## Running Tests
 
-The project uses `pytest` for automated testing.
+The project includes automated tests for:
 
-Run all tests using:
-
-```powershell
-python -m pytest
-```
-
-The current test suite contains **16 automated tests** covering:
-
-* Output structure validation
 * Pydantic schema validation
-* Response normalization
 * Empty parameter results
-* Invalid JSON responses
-* Empty Gemini responses
-* Gemini API failures
-* Mocked Gemini extraction
+* Required fields
+* Evidence normalization
+* Constraint normalization
 * Invalid confidence values
 * Missing required fields
+* Mocked Gemini responses
+* Invalid JSON responses
+* Empty API responses
+* Simulated API failures
+* Existing YAML output validation
 
-The latest test run:
+Run the test suite using:
+
+```powershell
+python -m pytest -q
+```
+
+Current test status:
 
 ```text
 16 passed, 1 warning
 ```
 
-The warning originates from the Google GenAI dependency and does not affect the test results.
+The tests use mocked Gemini responses where appropriate, so the test suite does not require making real Gemini API calls.
+
+---
+
+## Validation and Normalization
+
+AI-generated responses can occasionally contain minor formatting inconsistencies.
+
+For example, Gemini may return:
+
+```json
+{
+  "evidence": "This is supporting evidence."
+}
+```
+
+while the expected schema requires:
+
+```json
+{
+  "evidence": [
+    "This is supporting evidence."
+  ]
+}
+```
+
+The `normalize_response()` function converts string values into lists before Pydantic validation.
+
+Pydantic then validates the normalized response against the following models:
+
+```python
+class ArchitecturalParameter(BaseModel):
+    name: str
+    description: str
+    type: str
+    implementation_defined: bool
+    implementation_specific: bool
+    constraints: list[str]
+    evidence: list[str]
+    confidence: Literal["high", "medium", "low"]
+```
+
+This provides a validation layer between the AI-generated response and the final YAML output.
 
 ---
 
 ## Testing Strategy
 
-The project uses two types of testing.
+The project uses two complementary testing approaches.
 
-### 1. Validation Tests
+### Unit and Validation Tests
 
-These tests verify that extracted data follows the expected schema.
+`tests/test_validation.py` tests the behavior of the extraction and validation logic, including mocked Gemini responses.
 
-For example:
+### Output Tests
 
-* Required fields must be present.
-* `constraints` must be a list.
-* `evidence` must be a list.
-* `confidence` must be `high`, `medium`, or `low`.
-* Implementation flags must be Boolean values.
+`tests/test_extractor.py` validates the generated YAML files and checks that:
 
-### 2. Mocked API Tests
+* Expected parameters are present.
+* Parameter names are correct.
+* Required fields exist.
+* Evidence is stored as a list.
+* Confidence values are valid.
+* Empty extraction results are handled correctly.
 
-The Gemini API is mocked during testing.
-
-This means tests do not:
-
-* Consume Gemini API quota.
-* Require a live API connection.
-* Depend on Gemini availability.
-* Require a valid API key.
-
-The mocked tests verify that the extraction pipeline correctly handles both successful and failed Gemini responses.
+This separation helps verify both the extraction pipeline and the generated output.
 
 ---
 
-## Current Limitations
+## Limitations
 
-The current implementation is an initial prototype and has several areas for future improvement.
+This project is currently a prototype and has several limitations:
 
-### 1. LLM-dependent extraction
-
-The accuracy of parameter extraction depends on the quality and consistency of the LLM response.
-
-### 2. Prompt-based extraction
-
-The current system relies heavily on a structured system prompt to guide Gemini in identifying architectural parameters.
-
-### 3. Limited specification coverage
-
-The current prototype has been tested with a small number of RISC-V specification snippets.
-
-A larger evaluation dataset is required to measure extraction accuracy across the complete RISC-V specification.
-
-### 4. No duplicate detection
-
-The current implementation does not yet automatically detect and merge duplicate parameters extracted from different sections.
-
-### 5. No persistent parameter database
-
-Extracted parameters are currently saved as YAML files rather than being stored in a searchable database or consolidated parameter repository.
+* Extraction quality depends on the Gemini model's interpretation of the specification.
+* The system only processes the snippets provided as input.
+* The current implementation does not automatically download or parse the complete RISC-V ISA specification.
+* AI-generated results require validation and may still require human review.
+* The current extraction logic is focused on explicitly stated implementation-specific, implementation-defined, optional, or implementation-variable behavior.
+* The system does not yet maintain a persistent database of extracted parameters.
+* Large-scale processing and benchmarking against a manually annotated ground-truth dataset have not yet been implemented.
 
 ---
 
 ## Future Improvements
 
-Potential future improvements include:
+Potential future work includes:
 
-* Process the complete RISC-V ISA specification automatically.
-* Add support for both unprivileged and privileged specifications.
-* Improve parameter classification.
-* Distinguish between:
-
-  * Implementation-defined parameters
-  * Implementation-specific parameters
-  * Architectural constants
-  * Architectural conventions
-* Add parameter identifiers and specification section references.
-* Improve evidence extraction and traceability.
-* Add duplicate parameter detection.
-* Build a consolidated parameter database.
-* Add confidence scoring and evaluation metrics.
-* Compare extracted parameters against manually annotated ground truth.
-* Add support for alternative LLM providers.
-* Improve retry and rate-limit handling.
-* Add structured logging.
-* Add CI/CD testing using GitHub Actions.
-
----
-
-## Security
-
-API credentials are stored in environment variables using a `.env` file.
-
-The following files and directories are excluded from Git version control:
-
-```text
-.env
-.venv/
-__pycache__/
-*.pyc
-output/
-```
-
-API keys should never be hard-coded in the source code or committed to a public repository.
-
----
-
-## Technology Stack
-
-* **Python**
-* **Google Gemini API**
-* **Gemini 2.5 Flash**
-* **Pydantic**
-* **PyYAML**
-* **pytest**
-* **python-dotenv**
+* Processing the complete RISC-V ISA and Privileged Architecture specifications.
+* Automatically splitting large specification documents into manageable sections.
+* Adding section numbers and document references to extracted parameters.
+* Improving evidence extraction and traceability.
+* Creating a manually annotated benchmark dataset.
+* Evaluating extraction precision, recall, and F1 score.
+* Adding duplicate parameter detection.
+* Supporting incremental processing of specification updates.
+* Comparing extracted parameters across different RISC-V specification versions.
+* Adding a command-line interface.
+* Adding structured logging and error reporting.
+* Exploring local or open-source language models as alternative inference backends.
+* Adding support for multiple AI providers through a common interface.
 
 ---
 
 ## Project Status
 
-The project currently provides a functional prototype capable of:
+This project is currently an initial working prototype.
 
-* Reading RISC-V specification snippets
-* Sending snippets to Gemini
-* Extracting architectural parameters
-* Normalizing LLM responses
-* Validating structured output using Pydantic
-* Generating YAML output
-* Handling API and parsing errors
-* Running 16 automated tests with mocked API calls
+The current implementation successfully demonstrates an end-to-end pipeline:
 
-The project is currently being developed and improved toward a more scalable AI-assisted pipeline for extracting architectural parameters from the RISC-V ISA specification.
+```text
+RISC-V Text
+    ↓
+AI-Assisted Extraction
+    ↓
+JSON Parsing
+    ↓
+Response Normalization
+    ↓
+Pydantic Validation
+    ↓
+YAML Serialization
+    ↓
+Automated Testing
+```
+
+The prototype currently includes two example RISC-V specification snippets and a test suite covering the extraction, validation, normalization, and output layers.
 
 ---
 
-## License
+## Author
 
-This project is currently under development. License information will be added as the project is prepared for public release.
+**Adnan Sadi Gul**
+
+GitHub: `Adnanibnsadi`
+
+This project was developed as part of an exploration into AI-assisted extraction of architectural parameters from the RISC-V ISA specification.

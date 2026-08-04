@@ -71,6 +71,15 @@ Use only information explicitly present in the provided snippet.
 Do not add information, examples, units, or constraints from general knowledge.
 Do not infer constraints that are not explicitly stated.
 
+Treat modal or optional language such as "may", "might", "should",
+"optional", and "optionally" as potential indicators of an architectural
+parameter only when the surrounding specification text indicates that
+the behavior, value, or feature varies by implementation or is optional.
+
+Do not extract a parameter solely because one of these words appears.
+Use the surrounding context to determine whether the statement describes
+an actual architectural parameter.
+
 For each parameter, return:
 - name
 - description

@@ -245,6 +245,22 @@ confidence: Literal["high", "medium", "low"]
 
 Therefore, unexpected values are rejected during validation.
 
+### 5.7 Context-Aware Handling of Modal and Optional Language
+
+The coding challenge identifies words such as `may`, `might`, `should`,
+`optional`, and `optionally` as potential indicators of parameters.
+
+The prompt therefore treats these terms as signals rather than automatic
+extraction triggers.
+
+A parameter is extracted only when the surrounding context indicates that
+the statement describes an implementation-variable, optional, or otherwise
+configurable architectural property.
+
+This prevents false positives caused by ordinary uses of modal language.
+For example, a statement that software "may" perform an operation does not
+necessarily define an architectural parameter.
+
 ---
 
 ## 6. LLM Provider Change During Development

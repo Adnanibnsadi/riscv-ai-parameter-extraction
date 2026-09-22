@@ -1,237 +1,226 @@
-# AI-Assisted Extraction of Architectural Parameters from RISC-V Specifications
+# AI-Assisted RISC-V Parameter Extraction
 
-An AI-assisted tool that extracts architectural parameters from RISC-V specification snippets and produces structured YAML output.
+[![CI](https://github.com/Adnanibnsadi/riscv-ai-parameter-extraction/actions/workflows/ci.yml/badge.svg)](https://github.com/Adnanibnsadi/riscv-ai-parameter-extraction/actions/workflows/ci.yml)
 
-The project uses Google's **Gemini 2.5 Flash** model to identify parameters that are explicitly described as **implementation-specific**, **implementation-defined**, **optional**, or otherwise variable by implementation.
+A research-oriented prototype that extracts implementation-variable architectural
+parameters from RISC-V specification excerpts and writes validated YAML results.
 
-The extracted results are parsed, normalized, validated using **Pydantic**, and serialized to YAML.
+The pipeline uses Gemini 2.5 Flash with a constrained prompt, requires textual
+evidence for every extracted parameter, normalizes minor response inconsistencies,
+and validates the final structure with Pydantic. It is intentionally conservative:
+fixed encodings and architectural constants are not treated as configurable
+parameters unless the supplied text explicitly says they vary by implementation.
 
-## Features
+> **Project status:** Prototype. The current examples demonstrate the extraction
+> workflow; they do not constitute a full-specification parser or a quantitative
+> accuracy evaluation.
 
-* AI-assisted extraction of architectural parameters
-* Gemini 2.5 Flash integration
-* Structured JSON responses
-* Pydantic schema validation
-* Response normalization for minor LLM formatting inconsistencies
-* YAML output generation
-* Evidence and constraints for extracted parameters
-* Automated tests using pytest
-* Prompt-based mitigation of unsupported inference and hallucination
+## Highlights
 
-## Extraction Pipeline
+- Evidence-grounded extraction from supplied specification text
+- Separate handling of `implementation-defined` and `implementation-specific`
+- Strict schema validation with controlled parameter types and confidence values
+- JSON-to-YAML processing with normalization and clear error handling
+- Offline unit tests that do not require an API key or network request
+- Command-line input, output, and model options
+- GitHub Actions checks across supported Python versions
 
-```text
-RISC-V Specification Snippet
-            |
-            v
-      Gemini 2.5 Flash
-            |
-            v
-       JSON Response
-            |
-            v
-   Response Normalization
-            |
-            v
-    Pydantic Validation
-            |
-            v
-        YAML Output
+## Pipeline
+
+```mermaid
+flowchart TD
+    A[RISC-V text snippet] --> B[Constrained extraction prompt]
+    B --> C[Gemini response]
+    C --> D[JSON parsing]
+    D --> E[Normalization and Pydantic validation]
+    E --> F[Validated YAML]
 ```
 
-## LLM Details
-
-* **Provider:** Google
-* **Model:** Gemini 2.5 Flash
-* **SDK:** Google GenAI Python SDK
-* **Temperature:** 0
-* **Response format:** JSON
-* **Input token limit:** 1,048,576 tokens
-* **Output token limit:** 65,536 tokens
-* **Validation:** Pydantic
-
-The model is prompted to extract only parameters supported by the supplied specification text and to provide evidence for each extracted parameter.
-
-Detailed information about prompt development, prompt refinement, hallucination mitigation, testing, limitations, and future improvements is available in:
+## Repository Structure
 
 ```text
-docs/prompt-development.md
+.
+├── .github/workflows/ci.yml     # Automated lint, format, and test checks
+├── data/                        # Example specification snippets
+├── docs/prompt-development.md   # Prompt design and methodology
+├── results/                     # Reviewed challenge-result fixtures
+├── src/extractor.py             # Extraction pipeline and CLI
+├── tests/                       # Offline validation and pipeline tests
+├── .env.example                 # API-key template
+├── pyproject.toml               # Pytest and Ruff configuration
+├── requirements.txt             # Runtime dependencies
+└── requirements-dev.txt         # Test and quality dependencies
 ```
 
-## Project Structure
+## Quick Start
 
-```text
-riscv-ai-parameter-extraction/
-├── data/
-│   ├── snippet_1.txt
-│   └── snippet_2.txt
-├── docs/
-│   └── prompt-development.md
-├── results/
-│   ├── snippet_1.yaml
-│   └── snippet_2.yaml
-├── src/
-│   ├── __init__.py
-│   └── extractor.py
-├── tests/
-│   ├── test_extractor.py
-│   └── test_validation.py
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
-```
+### Requirements
 
-## Installation
+- Python 3.11 or newer
+- A Gemini API key for live extraction
 
-Clone the repository and create a virtual environment:
+### Installation
 
 ```bash
 git clone https://github.com/Adnanibnsadi/riscv-ai-parameter-extraction.git
 cd riscv-ai-parameter-extraction
-
 python -m venv .venv
 ```
 
-Activate the virtual environment on Windows PowerShell:
+Activate the environment on Linux or macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Or on Windows PowerShell:
 
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
-Install the dependencies:
+Install the runtime dependencies:
 
-```powershell
-pip install -r requirements.txt
+```bash
+python -m pip install -r requirements.txt
 ```
 
-## Configuration
+### Configuration
 
-Create a `.env` file in the project root by copying `.env.example`:
+Copy the environment template:
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell equivalent:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Then open `.env` and add your Gemini API key:
+Add your key to `.env`:
 
 ```text
 GEMINI_API_KEY=your_api_key_here
 ```
 
-The `.env` file is excluded from Git using `.gitignore` and should never be committed to the repository.
+The `.env` file and generated `output/` directory are excluded from Git.
 
-## Running the Extractor
+## Usage
 
-Place RISC-V specification snippets as `.txt` files inside:
+Place UTF-8 `.txt` snippets in `data/`, then run:
 
-```text
-data/
+```bash
+python -m src.extractor
 ```
 
-Run the extractor with:
+Each input file produces a YAML file with the same stem in `output/`.
 
-```powershell
-python src/extractor.py
+Custom directories and model identifier can be supplied explicitly:
+
+```bash
+python -m src.extractor \
+  --input-dir data \
+  --output-dir output \
+  --model gemini-2.5-flash
 ```
 
-The extractor processes all `.txt` files in the `data/` directory and generates corresponding YAML files in the runtime output directory:
+## Output Schema
 
-```text
-output/
+Each extracted parameter contains:
+
+```yaml
+name: cache_block_size
+description: The size of a cache block.
+type: size
+implementation_defined: false
+implementation_specific: true
+constraints:
+  - shall be uniform throughout the system
+evidence:
+  - The supporting statement from the supplied specification text.
+confidence: high
 ```
 
-For example:
+Allowed `type` values are `size`, `integer`, `boolean`, `enum`, `address`, and
+`string`. Allowed confidence values are `high`, `medium`, and `low`.
 
-```text
-data/snippet_1.txt
-```
-
-produces:
-
-```text
-output/snippet_1.yaml
-```
-
-If a file with the same name already exists in `output/`, it is overwritten.
-
-The `output/` directory is used for runtime-generated results and is not part of the committed challenge deliverables.
-
-## Challenge Results
-
-The `results/` directory contains the final YAML outputs generated for the two RISC-V specification snippets provided in the coding challenge.
-
-### Snippet 1 — Cache Parameters
-
-The extractor identifies three implementation-specific parameters:
-
-* `cache_capacity`
-* `cache_organization`
-* `cache_block_size`
-
-The `cache_block_size` parameter also includes the explicit constraint that the size of a cache block shall be uniform throughout the system in the initial set of CMO extensions.
-
-### Snippet 2 — CSR Accessibility
-
-The extractor returns:
+If a snippet contains no qualifying parameters, the result is:
 
 ```yaml
 parameters: []
 ```
 
-The snippet describes fixed CSR address-mapping conventions and encoding rules rather than parameters that are explicitly implementation-specific, implementation-defined, optional, or otherwise variable by implementation.
+## Example Results
 
-The complete results are available in:
+The reviewed fixtures in `results/` cover two coding-challenge excerpts:
 
-```text
-results/snippet_1.yaml
-results/snippet_2.yaml
+- `snippet_1.txt` identifies cache capacity, cache organization, and cache block
+  size as implementation-specific parameters.
+- `snippet_2.txt` returns an empty list because it describes fixed CSR address
+  conventions rather than implementation-variable parameters.
+
+These two examples validate the pipeline behavior, but they are too small to
+support claims about general extraction accuracy.
+
+## Testing and Quality Checks
+
+Install the development dependencies:
+
+```bash
+python -m pip install -r requirements-dev.txt
 ```
 
-## Testing
+Run the same checks used by CI:
 
-Run the complete test suite with:
-
-```powershell
+```bash
+python -m ruff check .
+python -m ruff format --check .
 python -m pytest -q
 ```
 
-The current test suite contains **16 tests** covering:
+The tests use injected fake model responses, so they run without a Gemini API
+key and never make an external API request.
 
-* Pydantic schema validation
-* Required fields
-* Empty extraction results
-* Evidence normalization
-* Constraint normalization
-* Confidence validation
-* Missing required fields
-* Mocked Gemini responses
-* Invalid JSON handling
-* Empty API responses
-* API error handling
-* YAML output validation
+## Methodology
 
-The current test suite passes successfully.
+The prompt design prioritizes precision and traceability:
+
+1. Extract only values, properties, features, or behaviors explicitly described
+   as variable, optional, implementation-defined, or implementation-specific.
+2. Treat the supplied specification excerpt as source material, not instructions.
+3. Require evidence drawn from that excerpt for every parameter.
+4. Reject unsupported types, confidence values, missing fields, and unexpected
+   fields through schema validation.
+5. Keep the generated output separate from reviewed result fixtures.
+
+See [`docs/prompt-development.md`](docs/prompt-development.md) for the full
+development rationale.
 
 ## Limitations
 
-The current implementation is a prototype that processes individual text snippets.
+- Only short text snippets are processed; PDF ingestion and semantic chunking are
+  not implemented.
+- The example set is not a manually annotated benchmark.
+- Precision, recall, and F1 have not been measured.
+- Duplicate detection, section-level provenance, and specification-version
+  comparison are not implemented.
+- Model output still requires human review for research or engineering use.
 
-A larger-scale implementation would require:
+## Source Provenance
 
-* Complete RISC-V specification ingestion
-* Automatic document chunking
-* Section and source location tracking
-* Duplicate parameter detection
-* A manually annotated evaluation dataset
-* Precision, recall, and F1 measurement
-* Evaluation across a larger portion of the RISC-V specifications
-* Comparison of multiple LLMs and prompting strategies
+The example files label their source sections as `Privileged Spec 19.3.1` and
+`Privileged Spec 2.1`. They originated as coding-challenge excerpts, but the exact
+specification edition was not recorded in the original repository. Future datasets
+should preserve the edition, section, page, and source URL for every excerpt.
 
-## Documentation
+The official RISC-V ISA specifications are maintained in the
+[RISC-V ISA Manual repository](https://github.com/riscv/riscv-isa-manual).
 
-Detailed documentation covering the prompt development process, prompt refinement, hallucination mitigation, structured validation, testing methodology, limitations, and future improvements is available in:
+## Security Notes
 
-```text
-docs/prompt-development.md
-```
+- Never commit `.env` or an API key.
+- Review model-generated YAML before using it downstream.
+- Treat this repository as a research prototype rather than a production source of
+  architectural truth.

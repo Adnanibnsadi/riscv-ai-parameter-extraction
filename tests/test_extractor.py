@@ -2,18 +2,16 @@ from pathlib import Path
 
 import yaml
 
-
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = PROJECT_ROOT / "output"
+RESULTS_DIR = PROJECT_ROOT / "results"
 
 
 def load_yaml(filename: str) -> dict:
     """Load a YAML output file."""
 
-    file_path = OUTPUT_DIR / filename
+    file_path = RESULTS_DIR / filename
 
-    with open(file_path, "r", encoding="utf-8") as file:
+    with open(file_path, encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 
@@ -40,10 +38,7 @@ def test_snippet_1_parameter_names():
 
     data = load_yaml("snippet_1.yaml")
 
-    names = {
-        parameter["name"]
-        for parameter in data["parameters"]
-    }
+    names = {parameter["name"] for parameter in data["parameters"]}
 
     expected_names = {
         "cache_capacity",

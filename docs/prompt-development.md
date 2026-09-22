@@ -265,42 +265,21 @@ After refinement, the CSR snippet correctly produces:
 
 ```yaml
 parameters: []
+```
 
 ---
 
-## 6. LLM Provider Change During Development
+## 6. Model and Provider Scope
 
-The initial implementation used the OpenAI API.
+The current implementation uses Gemini 2.5 Flash through the `google-genai`
+Python SDK. The provider-specific client is created only when a live extraction
+is requested, so importing the validation models and running the offline tests do
+not require an API key.
 
-During development, the available OpenAI API account had no remaining API credits, resulting in an `insufficient_quota` error when attempting to run the extraction pipeline.
-
-Rather than requiring paid API credits for this prototype, the implementation was migrated to Google's Gemini API.
-
-The extraction logic was adapted to use:
-
-```text
-Gemini 2.5 Flash
-```
-
-through the `google-genai` Python SDK.
-
-The migration did not change the fundamental extraction objective or output schema. The same conceptual pipeline was retained:
-
-```text
-Specification Snippet
-        ↓
-LLM Prompt
-        ↓
-Structured JSON
-        ↓
-Normalization
-        ↓
-Pydantic Validation
-        ↓
-YAML
-```
-
-This also demonstrated that the extraction methodology is not tightly coupled to a single LLM provider.
+The prompt, normalization, validation, and serialization stages are conceptually
+independent of the provider. The current code has not yet implemented a formal
+multi-provider adapter, however, so provider portability remains a future
+improvement rather than a demonstrated feature.
 
 ---
 
@@ -336,18 +315,14 @@ For example:
 
 ```python
 if isinstance(parameter.get("evidence"), str):
-    parameter["evidence"] = [
-        parameter["evidence"]
-    ]
+    parameter["evidence"] = [parameter["evidence"]]
 ```
 
 Similarly:
 
 ```python
 if isinstance(parameter.get("constraints"), str):
-    parameter["constraints"] = [
-        parameter["constraints"]
-    ]
+    parameter["constraints"] = [parameter["constraints"]]
 ```
 
 This allows minor formatting inconsistencies to be handled without weakening the final schema validation.
@@ -456,17 +431,15 @@ The project includes tests for:
 * Invalid JSON
 * Empty model responses
 * Simulated API failures
-* YAML output structure
+* Reviewed YAML fixture structure
 * Required output fields
-* Valid confidence values
+* Controlled parameter types and confidence values
+* Missing and unexpected fields
+* YAML serialization
 
-The current test suite contains:
-
-```text
-16 passed
-```
-
-The tests mock the Gemini API, so the test suite does not require an API request for each test execution.
+The suite uses injected fake model responses and committed fixtures from the
+`results/` directory. It therefore runs without a Gemini API key and does not
+make external API requests.
 
 ---
 
